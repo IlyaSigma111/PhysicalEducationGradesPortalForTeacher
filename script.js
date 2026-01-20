@@ -51,8 +51,8 @@ function init() {
     elements.refreshBtn.addEventListener('click', loadResults);
     elements.exportBtn.addEventListener('click', exportResults);
     
-    // Автоматическое обновление каждые 30 секунд
-    setInterval(loadResults, 30000);
+    // Автоматическое обновление
+    setInterval(loadResults, 5000); // Каждые 5 секунд
 }
 
 // Загрузить результаты
@@ -60,26 +60,33 @@ async function loadResults() {
     try {
         showLoading();
         
+        console.log('Загрузка данных из Firebase...');
+        
         const snapshot = await db.collection('testResults')
             .orderBy('timestamp', 'desc')
             .limit(100)
             .get();
         
+        console.log('Получено документов:', snapshot.size);
+        
         state.results = [];
         snapshot.forEach(doc => {
             const data = doc.data();
+            console.log('Документ:', data);
             state.results.push({
                 id: doc.id,
                 ...data
             });
         });
         
+        console.log('Всего результатов:', state.results.length);
+        
         updateStatistics();
         applyFiltersAndSort();
         
     } catch (error) {
         console.error('Ошибка загрузки:', error);
-        showError('Ошибка загрузки результатов');
+        showError('Ошибка загрузки результатов. Проверьте подключение к Firebase.');
     }
 }
 
@@ -99,12 +106,18 @@ function showError(message) {
         <div class="empty-state">
             <i class="fas fa-exclamation-triangle"></i>
             <p>${message}</p>
+            <button onclick="loadResults()" class="btn" style="margin-top: 20px;">
+                <i class="fas fa-redo"></i>
+                Попробовать снова
+            </button>
         </div>
     `;
 }
 
 // Обновить статистику
 function updateStatistics() {
+    console.log('Обновление статистики...');
+    
     if (state.results.length === 0) {
         elements.totalTests.textContent = '0';
         elements.averageScore.textContent = '0%';
@@ -124,18 +137,28 @@ function updateStatistics() {
     
     // Лучший результат
     const bestResult = state.results.reduce((best, r) => 
-        (r.percentage || 0) > (best.percentage || 0) ? r : best
+        (r.percentage || 0) > (best.percentage || 0) ? r : best, 
+        {percentage: 0, studentName: '', studentClass: ''}
     );
     elements.bestScore.textContent = `${bestResult.percentage || 0}%`;
-    elements.bestStudent.textContent = `${bestResult.studentName}, ${bestResult.studentClass} класс`;
+    elements.bestStudent.textContent = `${bestResult.studentName || 'Неизвестно'}, ${bestResult.studentClass || '?'} класс`;
     
     // Тесты за сегодня
     const today = new Date().toDateString();
     const todayResults = state.results.filter(r => {
-        const resultDate = r.timestamp ? r.timestamp.toDate().toDateString() : today;
+        let resultDate;
+        if (r.timestamp && r.timestamp.toDate) {
+            resultDate = r.timestamp.toDate().toDateString();
+        } else if (r.date) {
+            resultDate = new Date(r.date).toDateString();
+        } else {
+            resultDate = today;
+        }
         return resultDate === today;
     });
     elements.todayTests.textContent = todayResults.length;
+    
+    console.log('Статистика обновлена');
 }
 
 // Обновить фильтры
@@ -153,6 +176,8 @@ function updateSorting() {
 
 // Применить фильтры и сортировку
 function applyFiltersAndSort() {
+    console.log('Применение фильтров...');
+    
     let filtered = [...state.results];
     
     // Фильтр по классу
@@ -164,7 +189,14 @@ function applyFiltersAndSort() {
     if (state.filters.date) {
         const filterDate = new Date(state.filters.date).toDateString();
         filtered = filtered.filter(r => {
-            const resultDate = r.timestamp ? r.timestamp.toDate().toDateString() : '';
+            let resultDate;
+            if (r.timestamp && r.timestamp.toDate) {
+                resultDate = r.timestamp.toDate().toDateString();
+            } else if (r.date) {
+                resultDate = new Date(r.date).toDateString();
+            } else {
+                return false;
+            }
             return resultDate === filterDate;
         });
     }
@@ -174,11 +206,24 @@ function applyFiltersAndSort() {
         if (state.sortBy === 'percentage') {
             return (b.percentage || 0) - (a.percentage || 0);
         } else if (state.sortBy === 'studentName') {
-            return a.studentName.localeCompare(b.studentName);
+            return (a.studentName || '').localeCompare(b.studentName || '');
         } else {
             // По дате (новые сверху)
-            const timeA = a.timestamp ? a.timestamp.toDate().getTime() : 0;
-            const timeB = b.timestamp ? b.timestamp.toDate().getTime() : 0;
+            let timeA = 0;
+            let timeB = 0;
+            
+            if (a.timestamp && a.timestamp.toDate) {
+                timeA = a.timestamp.toDate().getTime();
+            } else if (a.date) {
+                timeA = new Date(a.date).getTime();
+            }
+            
+            if (b.timestamp && b.timestamp.toDate) {
+                timeB = b.timestamp.toDate().getTime();
+            } else if (b.date) {
+                timeB = new Date(b.date).getTime();
+            }
+            
             return timeB - timeA;
         }
     });
@@ -189,45 +234,62 @@ function applyFiltersAndSort() {
 
 // Отобразить результаты
 function renderResults() {
+    console.log('Отображение результатов:', state.filteredResults.length);
+    
     if (state.filteredResults.length === 0) {
         elements.resultsList.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-inbox"></i>
                 <p>Нет результатов по выбранным фильтрам</p>
+                <p style="font-size: 14px; margin-top: 10px; color: #888;">
+                    Всего результатов в базе: ${state.results.length}
+                </p>
             </div>
         `;
         return;
     }
     
-    elements.resultsList.innerHTML = state.filteredResults.map(result => `
-        <div class="result-item">
+    elements.resultsList.innerHTML = state.filteredResults.map((result, index) => {
+        // Безопасное получение данных
+        const studentName = result.studentName || 'Неизвестно';
+        const studentClass = result.studentClass || '?';
+        const percentage = result.percentage || 0;
+        const correctAnswers = result.correctAnswers || 0;
+        const totalQuestions = result.totalQuestions || 10;
+        const grade = result.grade || '3';
+        const gradeText = result.gradeText || 'Удовлетворительно';
+        const date = result.date || '-';
+        const time = result.time || '-';
+        
+        return `
+        <div class="result-item" style="animation-delay: ${index * 0.05}s">
             <div class="result-content">
                 <div class="result-student">
-                    ${result.studentName}
-                    <div class="result-class">${result.studentClass} класс</div>
+                    ${studentName}
+                    <div class="result-class">${studentClass} класс</div>
                 </div>
                 
                 <div class="result-score">
                     <div class="score-circle">
-                        <div class="score-value" style="background: conic-gradient(#6366f1 0% ${result.percentage || 0}%, #e5e7eb ${result.percentage || 0}% 100%)">
-                            ${result.percentage || 0}%
+                        <div class="score-value" style="background: conic-gradient(#6366f1 0% ${percentage}%, #e5e7eb ${percentage}% 100%)">
+                            ${percentage}%
                         </div>
                     </div>
-                    <div class="score-text">${result.correctAnswers || 0}/${result.totalQuestions || 10}</div>
+                    <div class="score-text">${correctAnswers}/${totalQuestions}</div>
                 </div>
                 
                 <div class="result-grade">
-                    <span class="grade-badge grade-${result.grade || '3'}">
-                        ${result.grade || '3'}
+                    <span class="grade-badge grade-${grade}">
+                        ${grade}
                     </span>
                     <div class="result-grade-text" style="margin-top: 8px; font-size: 13px; color: #666;">
-                        ${result.gradeText || 'Удовлетворительно'}
+                        ${gradeText}
                     </div>
                 </div>
                 
                 <div class="result-details">
-                    <div class="result-date">${result.date || '-'}</div>
-                    <div class="result-time">${result.time || '-'}</div>
+                    <div class="result-date">${date}</div>
+                    <div class="result-time">${time}</div>
                 </div>
                 
                 <div class="result-actions">
@@ -237,7 +299,8 @@ function renderResults() {
                 </div>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Удалить результат
@@ -246,10 +309,11 @@ async function deleteResult(id) {
     
     try {
         await db.collection('testResults').doc(id).delete();
+        alert('Результат удален');
         loadResults(); // Перезагрузить список
     } catch (error) {
         console.error('Ошибка удаления:', error);
-        alert('Ошибка при удалении');
+        alert('Ошибка при удалении: ' + error.message);
     }
 }
 
@@ -260,10 +324,10 @@ function exportResults() {
         return;
     }
     
-    let csv = 'Фамилия Имя;Класс;Правильно;Всего;Процент;Оценка;Дата;Время\n';
+    let csv = 'Фамилия Имя;Класс;Правильно;Всего;Процент;Оценка;Оценка текст;Дата;Время\n';
     
     state.filteredResults.forEach(result => {
-        csv += `${result.studentName};${result.studentClass};${result.correctAnswers || 0};${result.totalQuestions || 10};${result.percentage || 0}%;${result.grade || '3'};${result.date || '-'};${result.time || '-'}\n`;
+        csv += `${result.studentName || ''};${result.studentClass || ''};${result.correctAnswers || 0};${result.totalQuestions || 10};${result.percentage || 0}%;${result.grade || '3'};${result.gradeText || ''};${result.date || '-'};${result.time || '-'}\n`;
     });
     
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
