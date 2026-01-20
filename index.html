@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты тестов - Учитель</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app">
+        <div class="container">
+            <!-- Шапка -->
+            <div class="header">
+                <div class="header-icon">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <div class="header-title">
+                    <h1>Панель учителя</h1>
+                    <p>Результаты тестирования по физкультуре</p>
+                </div>
+            </div>
+            
+            <!-- Статистика -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>
+                            <div class="stat-title">Всего тестов</div>
+                            <div class="stat-value" id="total-tests">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-desc">Всего пройденных тестов</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <div class="stat-title">Средний балл</div>
+                            <div class="stat-value" id="average-score">0%</div>
+                        </div>
+                    </div>
+                    <div class="stat-desc">Средний результат по всем тестам</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div>
+                            <div class="stat-title">Лучший результат</div>
+                            <div class="stat-value" id="best-score">0%</div>
+                        </div>
+                    </div>
+                    <div class="stat-desc" id="best-student">-</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div>
+                            <div class="stat-title">Сегодня</div>
+                            <div class="stat-value" id="today-tests">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-desc">Тестов пройдено сегодня</div>
+                </div>
+            </div>
+            
+            <!-- Фильтры -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="class-filter">
+                        <i class="fas fa-school"></i>
+                        Класс
+                    </label>
+                    <select id="class-filter">
+                        <option value="">Все классы</option>
+                        <option value="5">5 класс</option>
+                        <option value="6">6 класс</option>
+                        <option value="7">7 класс</option>
+                        <option value="8">8 класс</option>
+                        <option value="9">9 класс</option>
+                        <option value="10">10 класс</option>
+                        <option value="11">11 класс</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="date-filter">
+                        <i class="fas fa-calendar"></i>
+                        Дата
+                    </label>
+                    <input type="date" id="date-filter">
+                </div>
+                
+                <button id="refresh-btn" class="btn">
+                    <i class="fas fa-sync-alt"></i>
+                    Обновить
+                </button>
+                
+                <button id="export-btn" class="btn btn-primary">
+                    <i class="fas fa-download"></i>
+                    Экспорт
+                </button>
+            </div>
+            
+            <!-- Список результатов -->
+            <div class="results-container">
+                <div class="results-header">
+                    <h2 class="results-title">Результаты учеников</h2>
+                    <div class="sorting">
+                        <select id="sort-by">
+                            <option value="timestamp">По дате (новые)</option>
+                            <option value="percentage">По результату</option>
+                            <option value="studentName">По фамилии</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="results-list" id="results-list">
+                    <!-- Результаты будут здесь -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
